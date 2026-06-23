@@ -1,0 +1,6 @@
+{
+  "name": "ERP Ballet",
+  "description": "Sistema de gestão completa para escola de ballet com controle de contatos, pessoas, turmas, aulas e planos de aula.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
