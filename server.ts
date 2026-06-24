@@ -204,9 +204,9 @@ async function startServer() {
   });
 
   app.post("/api/auth/verify-recovery", (req, res) => {
-    const { email, cpf } = req.body;
-    if (!email || !cpf) {
-      res.status(400).json({ error: "E-mail e CPF são obrigatórios para a recuperação." });
+    const { email } = req.body;
+    if (!email) {
+      res.status(400).json({ error: "O e-mail é obrigatório para a recuperação." });
       return;
     }
 
@@ -216,36 +216,19 @@ async function startServer() {
       return;
     }
 
-    // Compare CPF ignoring dots and hyphens
-    const cleanCpfInput = cpf.replace(/\D/g, "");
-    const cleanCpfDb = foundUser.cpf.replace(/\D/g, "");
-
-    if (!cleanCpfInput || cleanCpfInput !== cleanCpfDb) {
-      res.status(400).json({ error: "O CPF informado não confere com os dados do usuário cadastrado." });
-      return;
-    }
-
-    res.json({ success: true, message: "Identidade confirmada com sucesso!" });
+    res.json({ success: true, message: "E-mail confirmado com sucesso!" });
   });
 
   app.post("/api/auth/reset-password", (req, res) => {
-    const { email, cpf, newPassword } = req.body;
-    if (!email || !cpf || !newPassword) {
-      res.status(400).json({ error: "E-mail, CPF e a nova senha são obrigatórios." });
+    const { email, newPassword } = req.body;
+    if (!email || !newPassword) {
+      res.status(400).json({ error: "E-mail e a nova senha são obrigatórios." });
       return;
     }
 
     const foundUser = db.pessoas.find(p => p.email.toLowerCase() === email.toLowerCase());
     if (!foundUser) {
       res.status(404).json({ error: "Usuário não encontrado." });
-      return;
-    }
-
-    const cleanCpfInput = cpf.replace(/\D/g, "");
-    const cleanCpfDb = foundUser.cpf.replace(/\D/g, "");
-
-    if (!cleanCpfInput || cleanCpfInput !== cleanCpfDb) {
-      res.status(400).json({ error: "O CPF informado não confere com os dados do usuário cadastrado." });
       return;
     }
 

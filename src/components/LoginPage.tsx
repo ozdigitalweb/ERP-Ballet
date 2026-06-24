@@ -17,7 +17,6 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
   const [isRecoveryOpen, setIsRecoveryOpen] = useState(false);
   const [recoveryStep, setRecoveryStep] = useState<'verify' | 'reset' | 'success'>('verify');
   const [recoveryEmail, setRecoveryEmail] = useState('');
-  const [recoveryCpf, setRecoveryCpf] = useState('');
   const [recoveryNewPassword, setRecoveryNewPassword] = useState('');
   const [recoveryConfirmPassword, setRecoveryConfirmPassword] = useState('');
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
@@ -77,8 +76,8 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
 
   const handleVerifyRecovery = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!recoveryEmail || !recoveryCpf) {
-      setRecoveryError('E-mail e CPF são obrigatórios.');
+    if (!recoveryEmail) {
+      setRecoveryError('E-mail é obrigatório.');
       return;
     }
     setRecoveryError(null);
@@ -88,7 +87,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
       const response = await fetch('/api/auth/verify-recovery', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: recoveryEmail, cpf: recoveryCpf }),
+        body: JSON.stringify({ email: recoveryEmail }),
       });
 
       const data = await response.json();
@@ -127,7 +126,6 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: recoveryEmail,
-          cpf: recoveryCpf,
           newPassword: recoveryNewPassword,
         }),
       });
@@ -213,7 +211,6 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                     setIsRecoveryOpen(true);
                     setRecoveryStep('verify');
                     setRecoveryEmail('');
-                    setRecoveryCpf('');
                     setRecoveryNewPassword('');
                     setRecoveryConfirmPassword('');
                     setRecoveryError(null);
@@ -312,7 +309,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
               {recoveryStep === 'verify' && (
                 <form onSubmit={handleVerifyRecovery} className="space-y-4">
                   <p className="text-slate-300 text-xs leading-relaxed mb-2">
-                    Para garantir sua segurança, informe o e-mail cadastrado e o CPF correspondente para validar sua identidade.
+                    Para garantir sua segurança, informe o e-mail cadastrado para validar sua identidade.
                   </p>
                   <div>
                     <label className="block text-xs font-semibold text-slate-300 mb-1 uppercase font-mono">E-mail Cadastrado</label>
@@ -322,17 +319,6 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
                       placeholder="exemplo@escolaballet.com.br"
                       value={recoveryEmail}
                       onChange={e => setRecoveryEmail(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs px-3.5 py-2.5 rounded-xl focus:border-purple-500 focus:outline-none placeholder:text-slate-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1 uppercase font-mono">CPF do Usuário</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="000.000.000-00"
-                      value={recoveryCpf}
-                      onChange={e => setRecoveryCpf(e.target.value)}
                       className="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs px-3.5 py-2.5 rounded-xl focus:border-purple-500 focus:outline-none placeholder:text-slate-500"
                     />
                   </div>
