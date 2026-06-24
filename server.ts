@@ -203,6 +203,63 @@ async function startServer() {
     });
   });
 
+  app.post("/api/auth/verify-recovery", (req, res) => {
+    const { email, cpf } = req.body;
+    if (!email || !cpf) {
+      res.status(400).json({ error: "E-mail e CPF são obrigatórios para a recuperação." });
+      return;
+    }
+
+    const foundUser = db.pessoas.find(p => p.email.toLowerCase() === email.toLowerCase());
+    if (!foundUser) {
+      res.status(404).json({ error: "Nenhum usuário cadastrado com este e-mail." });
+      return;
+    }
+
+    // Compare CPF ignoring dots and hyphens
+    const cleanCpfInput = cpf.replace(/\D/g, "");
+    const cleanCpfDb = foundUser.cpf.replace(/\D/g, "");
+
+    if (!cleanCpfInput || cleanCpfInput !== cleanCpfDb) {
+      res.status(400).json({ error: "O CPF informado não confere com os dados do usuário cadastrado." });
+      return;
+    }
+
+    res.json({ success: true, message: "Identidade confirmada com sucesso!" });
+  });
+
+  app.post("/api/auth/reset-password", (req, res) => {
+    const { email, cpf, newPassword } = req.body;
+    if (!email || !cpf || !newPassword) {
+      res.status(400).json({ error: "E-mail, CPF e a nova senha são obrigatórios." });
+      return;
+    }
+
+    const foundUser = db.pessoas.find(p => p.email.toLowerCase() === email.toLowerCase());
+    if (!foundUser) {
+      res.status(404).json({ error: "Usuário não encontrado." });
+      return;
+    }
+
+    const cleanCpfInput = cpf.replace(/\D/g, "");
+    const cleanCpfDb = foundUser.cpf.replace(/\D/g, "");
+
+    if (!cleanCpfInput || cleanCpfInput !== cleanCpfDb) {
+      res.status(400).json({ error: "O CPF informado não confere com os dados do usuário cadastrado." });
+      return;
+    }
+
+    if (newPassword.trim().length < 4) {
+      res.status(400).json({ error: "A nova senha deve possuir no mínimo 4 caracteres." });
+      return;
+    }
+
+    db.passwords[email.toLowerCase()] = newPassword;
+    saveDatabase(db);
+
+    res.json({ success: true, message: "Sua senha foi redefinida com sucesso! Agora você pode fazer o login." });
+  });
+
   // --- Reset Database ---
   app.post("/api/reset-database", (req, res) => {
     db = {

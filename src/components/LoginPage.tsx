@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Info, UserCheck, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { ShieldCheck, Info, UserCheck, AlertCircle, Eye, EyeOff, X, Lock, KeyRound } from 'lucide-react';
 import { UserRole } from '../types';
 
 interface LoginPageProps {
@@ -12,6 +12,17 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Recovery Password states
+  const [isRecoveryOpen, setIsRecoveryOpen] = useState(false);
+  const [recoveryStep, setRecoveryStep] = useState<'verify' | 'reset' | 'success'>('verify');
+  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [recoveryCpf, setRecoveryCpf] = useState('');
+  const [recoveryNewPassword, setRecoveryNewPassword] = useState('');
+  const [recoveryConfirmPassword, setRecoveryConfirmPassword] = useState('');
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [recoverySuccessMessage, setRecoverySuccessMessage] = useState<string | null>(null);
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
 
   // Predefined users for quick and helpful testing of permissions
   const demoUsers = [
@@ -62,6 +73,77 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
       const btn = document.getElementById('submit-login-btn');
       if (btn) btn.click();
     }, 100);
+  };
+
+  const handleVerifyRecovery = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!recoveryEmail || !recoveryCpf) {
+      setRecoveryError('E-mail e CPF são obrigatórios.');
+      return;
+    }
+    setRecoveryError(null);
+    setRecoveryLoading(true);
+
+    try {
+      const response = await fetch('/api/auth/verify-recovery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: recoveryEmail, cpf: recoveryCpf }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao verificar identidade.');
+      }
+
+      setRecoveryStep('reset');
+    } catch (err: any) {
+      setRecoveryError(err.message || 'Erro de conexão com o servidor.');
+    } finally {
+      setRecoveryLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!recoveryNewPassword || !recoveryConfirmPassword) {
+      setRecoveryError('Ambos os campos de senha são obrigatórios.');
+      return;
+    }
+    if (recoveryNewPassword !== recoveryConfirmPassword) {
+      setRecoveryError('As senhas digitadas não coincidem.');
+      return;
+    }
+    if (recoveryNewPassword.length < 4) {
+      setRecoveryError('A senha deve ter no mínimo 4 caracteres.');
+      return;
+    }
+    setRecoveryError(null);
+    setRecoveryLoading(true);
+
+    try {
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: recoveryEmail,
+          cpf: recoveryCpf,
+          newPassword: recoveryNewPassword,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao redefinir senha.');
+      }
+
+      setRecoverySuccessMessage(data.message || 'Senha redefinida com sucesso!');
+      setRecoveryStep('success');
+    } catch (err: any) {
+      setRecoveryError(err.message || 'Erro de conexão.');
+    } finally {
+      setRecoveryLoading(false);
+    }
   };
 
   return (
@@ -123,7 +205,25 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase font-mono">Senha de Acesso</label>
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="block text-xs font-semibold text-slate-300 uppercase font-mono">Senha de Acesso</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsRecoveryOpen(true);
+                    setRecoveryStep('verify');
+                    setRecoveryEmail('');
+                    setRecoveryCpf('');
+                    setRecoveryNewPassword('');
+                    setRecoveryConfirmPassword('');
+                    setRecoveryError(null);
+                    setRecoverySuccessMessage(null);
+                  }}
+                  className="text-purple-400 hover:text-purple-300 text-[11px] transition-colors focus:outline-none hover:underline"
+                >
+                  Esqueci minha senha?
+                </button>
+              </div>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -182,6 +282,129 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
         </div>
 
       </div>
+
+      {/* Recovery Password Modal */}
+      {isRecoveryOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-800 border border-slate-700/80 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl">
+            <div className="p-6 border-b border-slate-700/60 flex justify-between items-center bg-slate-800/50">
+              <div className="flex items-center gap-2">
+                <KeyRound className="w-5 h-5 text-purple-400" />
+                <h3 className="font-bold text-slate-100 text-base">Recuperar Senha</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsRecoveryOpen(false)}
+                className="text-slate-400 hover:text-slate-200 transition-colors p-1 hover:bg-slate-700 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {recoveryError && (
+                <div className="bg-red-950/80 border border-red-800/80 p-3 rounded-xl flex items-start gap-2 text-xs text-red-200 mb-4">
+                  <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                  <span>{recoveryError}</span>
+                </div>
+              )}
+
+              {recoveryStep === 'verify' && (
+                <form onSubmit={handleVerifyRecovery} className="space-y-4">
+                  <p className="text-slate-300 text-xs leading-relaxed mb-2">
+                    Para garantir sua segurança, informe o e-mail cadastrado e o CPF correspondente para validar sua identidade.
+                  </p>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1 uppercase font-mono">E-mail Cadastrado</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="exemplo@escolaballet.com.br"
+                      value={recoveryEmail}
+                      onChange={e => setRecoveryEmail(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs px-3.5 py-2.5 rounded-xl focus:border-purple-500 focus:outline-none placeholder:text-slate-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1 uppercase font-mono">CPF do Usuário</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="000.000.000-00"
+                      value={recoveryCpf}
+                      onChange={e => setRecoveryCpf(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs px-3.5 py-2.5 rounded-xl focus:border-purple-500 focus:outline-none placeholder:text-slate-500"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={recoveryLoading}
+                    className="w-full bg-purple-700 hover:bg-purple-800 disabled:bg-purple-900 text-white font-bold py-2.5 rounded-xl transition-all text-xs cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    {recoveryLoading ? 'Verificando dados...' : 'Verificar Identidade'}
+                  </button>
+                </form>
+              )}
+
+              {recoveryStep === 'reset' && (
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                  <p className="text-slate-300 text-xs leading-relaxed mb-2">
+                    Identidade confirmada! Defina sua nova senha de acesso abaixo.
+                  </p>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1 uppercase font-mono">Nova Senha</label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="Mínimo 4 caracteres"
+                      value={recoveryNewPassword}
+                      onChange={e => setRecoveryNewPassword(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs px-3.5 py-2.5 rounded-xl focus:border-purple-500 focus:outline-none placeholder:text-slate-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1 uppercase font-mono">Confirmar Nova Senha</label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="Digite a senha novamente"
+                      value={recoveryConfirmPassword}
+                      onChange={e => setRecoveryConfirmPassword(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs px-3.5 py-2.5 rounded-xl focus:border-purple-500 focus:outline-none placeholder:text-slate-500"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={recoveryLoading}
+                    className="w-full bg-purple-700 hover:bg-purple-800 disabled:bg-purple-900 text-white font-bold py-2.5 rounded-xl transition-all text-xs cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    {recoveryLoading ? 'Salvando...' : 'Redefinir Senha de Acesso'}
+                  </button>
+                </form>
+              )}
+
+              {recoveryStep === 'success' && (
+                <div className="text-center py-4 space-y-4">
+                  <div className="inline-flex p-3 bg-green-950 border border-green-800 rounded-full text-green-400 mb-1">
+                    <ShieldCheck className="w-8 h-8" />
+                  </div>
+                  <h4 className="font-bold text-slate-100 text-sm">Senha Alterada com Sucesso!</h4>
+                  <p className="text-slate-300 text-xs leading-relaxed max-w-sm mx-auto">
+                    {recoverySuccessMessage || 'Sua nova senha de acesso já está ativa no sistema e sincronizada com o banco de dados.'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setIsRecoveryOpen(false)}
+                    className="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 rounded-xl transition-all text-xs cursor-pointer mt-4"
+                  >
+                    Voltar para o Login
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
