@@ -1,7 +1,6 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
-import { createServer as createViteServer } from "vite";
 import { Contato, Pessoa, Turma, PlanoAula, Aula, UserRole } from "./src/types";
 
 // Database Service for Supabase
@@ -709,6 +708,7 @@ let db = loadDatabase();
   async function startFrontendAndListen() {
     if (!process.env.VERCEL) {
       if (process.env.NODE_ENV !== "production") {
+        const { createServer: createViteServer } = await import("vite");
         const vite = await createViteServer({
           server: { middlewareMode: true },
           appType: "spa"
