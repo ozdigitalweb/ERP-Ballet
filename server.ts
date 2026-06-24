@@ -710,7 +710,7 @@ let db = loadDatabase();
       const distPath = path.join(process.cwd(), "dist");
       const hasDist = fs.existsSync(distPath);
       // Force development Vite middleware if we are running server.ts directly or if dist doesn't exist yet
-      const isProduction = process.env.NODE_ENV === "production" && hasDist && !import.meta.url.endsWith("server.ts");
+      const isProduction = process.env.NODE_ENV === "production" && hasDist;
 
       if (!isProduction) {
         console.log("[Server] Starting in Vite middleware (development) mode...");
