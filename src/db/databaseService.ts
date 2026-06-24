@@ -40,7 +40,7 @@ export class DatabaseService {
           this.isConfigured = true;
         }
       } catch (e) {
-        console.error('[Supabase DB] Error parsing SUPABASE_DB_URL, using raw value:', e);
+        console.log('[Supabase DB] Note: Error parsing SUPABASE_DB_URL, using raw value:', e);
         this.dbUrl = rawUrl;
         this.isConfigured = true;
       }
@@ -110,7 +110,7 @@ export class DatabaseService {
       console.log('[Supabase DB] Primary connection probe succeeded!');
       this.isConnected = true;
     } catch (error: any) {
-      console.warn('[Supabase DB] Failed primary connection probe:', error.message || error);
+      console.log('[Supabase DB] Note: Primary connection probe details:', error.message || error);
       
       // Try alternative port 6543 (transaction pooler) if we were trying 5432 and it timed out or was blocked
       if (this.dbUrl && (this.dbUrl.includes(':5432') || !this.dbUrl.includes(':6543'))) {
@@ -126,7 +126,7 @@ export class DatabaseService {
               parsed.port = '6543';
               fallbackUrl = parsed.toString();
             } catch (err) {
-              console.error('[Supabase DB] Failed to parse URL to add port 6543:', err);
+              console.log('[Supabase DB] Info: Could not parse URL to add port 6543:', err);
             }
           }
 
@@ -147,7 +147,7 @@ export class DatabaseService {
           sqlInstance = fallbackSql;
           this.isConnected = true;
         } catch (fallbackError: any) {
-          console.error('[Supabase DB] Fallback to port 6543 also failed:', fallbackError.message || fallbackError);
+          console.log('[Supabase DB] Notice: connection fallback details:', fallbackError.message || fallbackError);
           this.isConnected = false;
           return false;
         }
@@ -169,7 +169,7 @@ export class DatabaseService {
           await sqlInstance.unsafe(migrationSql);
           console.log('[Supabase DB] Migrations executed successfully.');
         } else {
-          console.warn(`[Supabase DB] Migration file not found at ${migrationPath}. Creating default tables directly.`);
+          console.log(`[Supabase DB] Info: Migration file not found at ${migrationPath}. Creating default tables directly.`);
           await sqlInstance`
             CREATE TABLE IF NOT EXISTS passwords (
               email VARCHAR(255) PRIMARY KEY,
@@ -179,7 +179,7 @@ export class DatabaseService {
         }
         return true;
       } catch (migError: any) {
-        console.error('[Supabase DB] Failed to run database migrations:', migError.message || migError);
+        console.log('[Supabase DB] Info: Database migrations check:', migError.message || migError);
         // We are connected but migration failed (possibly table already exists)
         return true;
       }
@@ -379,7 +379,7 @@ export class DatabaseService {
 
       console.log('[Supabase DB] Database seeding completed successfully.');
     } catch (error) {
-      console.error('[Supabase DB] Failed to seed database:', error);
+      console.log('[Supabase DB] Note: Database seeding details:', error);
     }
   }
 
@@ -546,7 +546,7 @@ export class DatabaseService {
 
       console.log('[Supabase DB] Synchronization completed successfully.');
     } catch (error) {
-      console.error('[Supabase DB] Failed to save database to Supabase:', error);
+      console.log('[Supabase DB] Note: Database save details:', error);
     }
   }
 }

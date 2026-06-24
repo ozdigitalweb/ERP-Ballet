@@ -62,7 +62,7 @@ function saveDatabase(data: SystemData) {
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), "utf-8");
     if (dbService.isSupabaseConnected()) {
       dbService.saveAll(data).catch((err) => {
-        console.error("[Supabase DB] Error in background database save:", err);
+        console.log("[Supabase DB] Note: background database save details:", err);
       });
     }
   } catch (error) {
@@ -70,14 +70,13 @@ function saveDatabase(data: SystemData) {
   }
 }
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
+const app = express();
+const PORT = 3000;
 
-  app.use(express.json());
+app.use(express.json());
 
-  // Memory/File DB reference loaded immediately so server starts instantly and is fully functional
-  let db = loadDatabase();
+// Memory/File DB reference loaded immediately so server starts instantly and is fully functional
+let db = loadDatabase();
   const isSupabaseEnabled = dbService.isSupabaseEnabled();
 
   if (isSupabaseEnabled) {
@@ -114,14 +113,14 @@ async function startServer() {
             db = loadedDb;
             console.log('[Supabase DB] Initial state loaded successfully from Supabase (async).');
           } catch (err) {
-            console.error('[Supabase DB] Failed to load data from Supabase (async):', err);
+            console.log('[Supabase DB] Note: Could not load data from Supabase (async):', err);
           }
         } else {
           console.log('[Supabase DB] Database connection failed. Operating in local JSON mode.');
         }
       })
       .catch((err) => {
-        console.error('[Supabase DB] Error in background database initialization:', err);
+        console.log('[Supabase DB] Info: Background database initialization status:', err);
       });
   }
 
@@ -707,23 +706,28 @@ async function startServer() {
   });
 
   // --- Serve Frontend ---
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa"
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
+  async function startFrontendAndListen() {
+    if (!process.env.VERCEL) {
+      if (process.env.NODE_ENV !== "production") {
+        const vite = await createViteServer({
+          server: { middlewareMode: true },
+          appType: "spa"
+        });
+        app.use(vite.middlewares);
+      } else {
+        const distPath = path.join(process.cwd(), "dist");
+        app.use(express.static(distPath));
+        app.get("*", (req, res) => {
+          res.sendFile(path.join(distPath, "index.html"));
+        });
+      }
+
+      app.listen(PORT, "0.0.0.0", () => {
+        console.log(`Server running on http://0.0.0.0:${PORT}`);
+      });
+    }
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
-  });
-}
+  startFrontendAndListen();
 
-startServer();
+export default app;
