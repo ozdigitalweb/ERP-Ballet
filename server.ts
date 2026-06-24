@@ -4,6 +4,9 @@ import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { Contato, Pessoa, Turma, PlanoAula, Aula, UserRole } from "./src/types";
 
+// Database Service for Supabase
+import { DatabaseService, SystemData } from "./src/db/databaseService";
+
 // Seed data imports
 import {
   INITIAL_CONTATOS,
@@ -14,15 +17,7 @@ import {
 } from "./src/mockData";
 
 const DB_FILE = path.join(process.cwd(), "database.json");
-
-interface SystemData {
-  contatos: Contato[];
-  pessoas: Pessoa[];
-  turmas: Turma[];
-  planos: PlanoAula[];
-  aulas: Aula[];
-  passwords: Record<string, string>; // email -> password
-}
+const dbService = new DatabaseService();
 
 // Ensure database file exists
 function loadDatabase(): SystemData {
@@ -65,6 +60,11 @@ function loadDatabase(): SystemData {
 function saveDatabase(data: SystemData) {
   try {
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), "utf-8");
+    if (dbService.isSupabaseConnected()) {
+      dbService.saveAll(data).catch((err) => {
+        console.error("[Supabase DB] Error in background database save:", err);
+      });
+    }
   } catch (error) {
     console.error("Error saving database file", error);
   }
@@ -76,8 +76,54 @@ async function startServer() {
 
   app.use(express.json());
 
-  // Memory/File DB reference
+  // Memory/File DB reference loaded immediately so server starts instantly and is fully functional
   let db = loadDatabase();
+  const isSupabaseEnabled = dbService.isSupabaseEnabled();
+
+  if (isSupabaseEnabled) {
+    // Run Supabase initialization and synchronization asynchronously in the background
+    // This prevents blocking server startup (avoiding Cloud Run TCP startup probe timeout errors)
+    dbService.initialize()
+      .then(async (isConnected) => {
+        if (isConnected) {
+          try {
+            const defaultDb: SystemData = {
+              contatos: INITIAL_CONTATOS,
+              pessoas: INITIAL_PESSOAS,
+              turmas: INITIAL_TURMAS,
+              planos: INITIAL_PLANOS_AULA,
+              aulas: INITIAL_AULAS,
+              passwords: {
+                "webmaster@oz.com.br": "30tnvsserp",
+                "diretor@escolaballet.com.br": "senha123",
+                "marcia@escolaballet.com.br": "senha123",
+                "camila@escolaballet.com.br": "senha123",
+                "renata@escolaballet.com.br": "senha123",
+                "patricia@escolaballet.com.br": "senha123",
+                "beatriz@escolaballet.com.br": "senha123",
+                "mariana.antunes@email.com": "senha123",
+                "clara.antunes@email.com": "senha123",
+                "sofia.rezende@email.com": "senha123",
+                "carlos.rezende@email.com": "senha123",
+                "isabella.costa@email.com": "senha123",
+                "rodrigo.vis@email.com": "senha123"
+              }
+            };
+            await dbService.seedIfEmpty(defaultDb);
+            const loadedDb = await dbService.loadAll();
+            db = loadedDb;
+            console.log('[Supabase DB] Initial state loaded successfully from Supabase (async).');
+          } catch (err) {
+            console.error('[Supabase DB] Failed to load data from Supabase (async):', err);
+          }
+        } else {
+          console.log('[Supabase DB] Database connection failed. Operating in local JSON mode.');
+        }
+      })
+      .catch((err) => {
+        console.error('[Supabase DB] Error in background database initialization:', err);
+      });
+  }
 
   // Helper middleware to authenticate via Token
   function authenticateUser(req: express.Request, res: express.Response, next: express.NextFunction) {
@@ -107,6 +153,16 @@ async function startServer() {
     (req as any).activeRole = activeRole;
     next();
   }
+
+  // --- DB Status API (Public to check Supabase configuration) ---
+  app.get("/api/db-status", (req, res) => {
+    res.json({
+      supabaseEnabled: dbService.isSupabaseEnabled(),
+      supabaseConnected: dbService.isSupabaseConnected(),
+      connectionStringDiagnostic: dbService.getDbUrlDiagnostic(),
+      mode: dbService.isSupabaseConnected() ? "supabase" : "local-file"
+    });
+  });
 
   // --- Auth API ---
   app.post("/api/auth/login", (req, res) => {

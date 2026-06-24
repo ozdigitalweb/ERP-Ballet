@@ -32,6 +32,14 @@ export default function App() {
   const [roles, setRoles] = useState<UserRole[]>([]);
   const [authChecked, setAuthChecked] = useState(false);
 
+  // Connection status of Supabase
+  const [dbStatus, setDbStatus] = useState<{
+    supabaseEnabled: boolean;
+    supabaseConnected: boolean;
+    connectionStringDiagnostic: string;
+    mode: 'supabase' | 'local-file';
+  } | null>(null);
+
   // Current active simulation tab
   const [activeTab, setActiveTab] = useState<'dashboard' | 'contatos' | 'pessoas' | 'turmas' | 'aulas' | 'planos'>('dashboard');
 
@@ -41,6 +49,14 @@ export default function App() {
   const [turmas, setTurmas] = useState<Turma[]>([]);
   const [planos, setPlanos] = useState<PlanoAula[]>([]);
   const [aulas, setAulas] = useState<Aula[]>([]);
+
+  // 0. Fetch Database Status on mount
+  useEffect(() => {
+    fetch('/api/db-status')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => data && setDbStatus(data))
+      .catch(console.error);
+  }, []);
 
   // 1. Verify token & get user profile on mount
   useEffect(() => {
@@ -507,9 +523,20 @@ export default function App() {
     <div className="min-h-screen bg-[#FAF7FD] flex flex-col font-sans text-slate-800" id="app-root-shell">
       {/* Top Banner with session switch & database setup */}
       <div className="bg-[#2e0854] text-white border-b-2 border-yellow-400 py-3 px-4 text-xs font-medium flex flex-col lg:flex-row items-center justify-between gap-3 shadow-md">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="p-1 px-2.5 bg-emerald-600 text-white rounded-lg text-[10px] uppercase font-mono font-extrabold tracking-wider shadow-sm">Auditado</span>
-          <span className="text-purple-100">
+          {dbStatus?.supabaseConnected ? (
+            <span className="p-1 px-2.5 bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-lg text-[10px] uppercase font-mono font-extrabold tracking-wider shadow-sm flex items-center gap-1" title={`Conectado à URL: ${dbStatus.connectionStringDiagnostic}`}>
+              <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />
+              Supabase Nuvem
+            </span>
+          ) : (
+            <span className="p-1 px-2.5 bg-slate-700 text-slate-300 rounded-lg text-[10px] uppercase font-mono font-bold tracking-wider shadow-sm flex items-center gap-1" title="Para ativar a sincronização na nuvem, configure SUPABASE_DB_URL no .env">
+              <span className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
+              Banco Local (JSON)
+            </span>
+          )}
+          <span className="text-purple-100 ml-1">
             Você está logado de forma segura! Se possuir múltiplos papéis, use o comutador ao lado:
           </span>
         </div>
