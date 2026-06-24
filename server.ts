@@ -707,7 +707,13 @@ let db = loadDatabase();
   // --- Serve Frontend ---
   async function startFrontendAndListen() {
     if (!process.env.VERCEL) {
-      if (process.env.NODE_ENV !== "production") {
+      const distPath = path.join(process.cwd(), "dist");
+      const hasDist = fs.existsSync(distPath);
+      // Force development Vite middleware if we are running server.ts directly or if dist doesn't exist yet
+      const isProduction = process.env.NODE_ENV === "production" && hasDist && !import.meta.url.endsWith("server.ts");
+
+      if (!isProduction) {
+        console.log("[Server] Starting in Vite middleware (development) mode...");
         const { createServer: createViteServer } = await import("vite");
         const vite = await createViteServer({
           server: { middlewareMode: true },
@@ -715,7 +721,7 @@ let db = loadDatabase();
         });
         app.use(vite.middlewares);
       } else {
-        const distPath = path.join(process.cwd(), "dist");
+        console.log("[Server] Starting in static production mode...");
         app.use(express.static(distPath));
         app.get("*", (req, res) => {
           res.sendFile(path.join(distPath, "index.html"));
